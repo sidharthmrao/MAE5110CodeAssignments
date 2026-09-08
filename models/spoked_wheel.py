@@ -5,8 +5,7 @@ def non_collision_dynamics(t, state, params):
     g = params["gravity"]
     l = params["spoke_length"]
 
-    angle = state[0]
-    angular_velocity = state[1]
+    angle, angular_velocity = state
 
     # -- DYNAMICS --
 
