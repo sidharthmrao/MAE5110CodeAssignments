@@ -146,7 +146,10 @@ def bin_return_map(current_velocities, next_velocities, bin_count):
 
 
 def estimate_largest_fixed_point(current_velocities, next_velocities):
-    """Estimate the largest intersection after median-binning the noisy map."""
+    """
+    Estimate the largest intersection after median-binning the noisy map.
+    When this point has a positive Floquet Multiplier, it corresponds to a limit cycling fixed point.
+    """
     current, following = bin_return_map(
         current_velocities, next_velocities, RETURN_MAP_BIN_COUNT
     )
@@ -156,15 +159,18 @@ def estimate_largest_fixed_point(current_velocities, next_velocities):
     error = following - current
     candidates = list(current[np.isclose(error, 0.0, atol=1e-10)])
 
+    # Find points within a small threshold of identity line.
     contact_indices = np.flatnonzero(np.abs(error) <= IDENTITY_CONTACT_TOLERANCE)
     candidates.extend(current[contact_indices])
 
+    # Find places where the error from identity line changes direction.
     for index in np.flatnonzero(error[:-1] * error[1:] < 0.0):
         fraction = -error[index] / (error[index + 1] - error[index])
         candidates.append(
             current[index] + fraction * (current[index + 1] - current[index])
         )
 
+    # Select largest fixed point.
     if candidates:
         return float(np.max(candidates))
 
@@ -202,7 +208,7 @@ def estimate_floquet_multiplier(fixed_point, results):
 
 
 def plot_poincare_map(results):
-    """Plot all return samples, the largest fixed point (corresponding to limit cycling), and its Floquet Multiplier estimate."""
+    """Plot all return samples, the largest fixed point (corresponding to limit cycling), and its Floquet Multiplier estimate, if a limit cycle case exists."""
     POINCARE_MAP_DIR.mkdir(parents=True, exist_ok=True)
     current = results["poincare_current"]
     following = results["poincare_next"]
