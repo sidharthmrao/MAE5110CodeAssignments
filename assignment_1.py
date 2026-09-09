@@ -1,9 +1,25 @@
+"""Contains base simulation and spoked wheel dynamics. Running this file directly runs a single simulation with configured parameters."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from integrators import rk4 as integrator
-from models import spoked_wheel as model
 from assignment_1_visualization import plot_poincare_return_map
+
+
+def spoked_wheel_non_collision_dynamics(state, params):
+    g = params["gravity"]
+    l = params["spoke_length"]
+
+    angle, angular_velocity = state
+
+    # -- DYNAMICS --
+
+    angular_acceleration = g / l * np.sin(angle)
+
+    state_derivative = np.array([angular_velocity, angular_acceleration])
+
+    return state_derivative
 
 
 def simulate(initial_state, simulation_params, model_params):
@@ -36,7 +52,9 @@ def simulate(initial_state, simulation_params, model_params):
 
     for step, t in enumerate(time_traj[:-1]):
         # First, calculate regular update (no collision).
-        dynamics = lambda t, state: model.non_collision_dynamics(t, state, model_params)
+        dynamics = lambda _t, state: spoked_wheel_non_collision_dynamics(
+            state, model_params
+        )
         state_traj[:, step + 1] = integrator(state_traj[:, step], t, timestep, dynamics)
 
         # Check for collision and wrap to new spoke if needed.
