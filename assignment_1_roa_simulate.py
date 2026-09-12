@@ -12,16 +12,15 @@ from assignment_1 import simulate
 CONVERGENCES = ["SETTLED_STABLE", "SETTLED_UNSTABLE", "CYCLED"]
 
 SIMULATION_PARAMS = {
-    "timestep": 1e-3,
-    "sim_time": 20.0,
-    "full_stop_velocity_tolerance": 1e-5,
+    "timestep": 1e-3,  # s
+    "sim_time": 20.0,  # s
+    "full_stop_velocity_tolerance": 1e-5,  # m/s
 }
 MODEL_PARAMS = {
-    "gravity": 9.81,
-    "slope_incline": np.deg2rad(20.0),
+    "gravity": 9.81,  # m/s^2
+    "slope_incline": np.deg2rad(20.0),  # rad
     "num_spokes": 6,
-    "spoke_length": 1.0,
-    "center_mass": 1.0,
+    "spoke_length": 1.0,  # m
 }
 
 ANGLE_STEPS = 45

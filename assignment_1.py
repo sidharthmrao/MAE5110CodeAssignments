@@ -130,17 +130,16 @@ def plot_poincare_section(section_angular_velocity):
 
 if __name__ == "__main__":
     simulation_params = {
-        "timestep": 1e-4,
-        "sim_time": 20.0,
-        "full_stop_velocity_tolerance": 1e-5,
+        "timestep": 1e-4,  # s
+        "sim_time": 20.0,  # s
+        "full_stop_velocity_tolerance": 1e-5,  # rad/s
     }
 
     model_params = {
-        "gravity": 9.81,  # gravity m/s^2)
-        "slope_incline": np.deg2rad(20),
+        "gravity": 9.81,  # m/s^2)
+        "slope_incline": np.deg2rad(20),  # rad, 0 is level with ground
         "num_spokes": 6,
-        "spoke_length": 1,
-        "center_mass": 1,
+        "spoke_length": 1,  # m
     }
 
     # Starting angle must be between `slope_incline - alpha` and `slope_incline + alpha` ,
