@@ -54,9 +54,9 @@ I tested over a initial state space from -500 deg/s to 300 deg/s and -10 deg to 
 There are a few distinct regions.  
 The right-top green region is where one of the legs is very close to the ground and and the starting velocity is low, so the spoked wheel settles in a resting position with two legs on the ground.  
 The large top blue region is where the spoked wheel is able to gain enough momentum at the first collision to where it is able to keep gaining speed until it reaches a limit cycling velocity.  
-The center green region is where the spoked wheel starts at a reasonable angle where it is able to jump over the first step but doesn't have enough momentum to keep going till limit cycle and eventually slows down to a stop.  
-After this, there is one more region where the spoked wheel starts with enough velocity where it is able to go backwards a step, but depending on which angle it slows down to 0 at, it is either able to enter the top blue convergence region and ends up limit cycling or ends up in one of the green regions and ends up stopping. 
-As seen in the RoA maps in later tests, there are more blue convergence regions below corresponding to each step the spoked wheel takes backwards.
+The center green region is where the spoked wheel starts at a reasonable angle where it is able to jump over the first step but doesn't have enough momentum to rotate another full step and settles to a stop.
+After this, there is one more region where the spoked wheel starts with enough velocity where it is able to go backwards a full step, but depending on which angle it slows down to 0 at, it is either able to enter the top blue convergence region and ends up limit cycling or ends up in one of the green regions and ends up stopping. 
+As seen in the RoA maps in later tests, there are more blue convergence regions below corresponding to each additional full step the spoked wheel takes backwards.
 
 ___
 ### Return Map
