@@ -111,26 +111,25 @@ def visualize(
         [theta, angular_velocity], in radians and radians/second. Theta is
         measured clockwise from upward vertical; positive x points right.
     params : dict
-        ``length`` is the leg length in meters. ``incline`` is the ground's
+        ``spoke_length`` is the leg length in meters. ``incline_angle`` is the ground's
         downhill slope angle in radians (positive slopes descend to the right).
-        ``angle_of_attack`` is HALF the angle between the stance and forward swing
-        legs, in radians; it is needed only when show_swing=True.
+        ``alpha`` is HALF the angle between the stance and each neighboring
+        spoke, in radians; it is needed only when show_swing=True.
         ``ankle_torque`` (optional, default 0) is displayed in N m, with positive
         torque acting in the positive theta direction. Other keys are ignored.
     ax : matplotlib.axes.Axes, optional
         Axes to clear and reuse. If omitted, create a figure. This function
         neither shows nor saves it: use plt.show() or ax.figure.savefig(...).
     show_swing : bool
-        Draw a straight forward swing leg at the supplied angle_of_attack. Set False
-        while the swing leg is held clear or while balancing. Swing motion is
-        not part of the two-state model and is not inferred from theta.
+        Draw neighboring spokes on both sides of the stance leg at offsets
+        of plus and minus twice alpha. Set False to show only the stance leg.
     stance_position : pair of floats
         Current stance foot's (x, y) in meters, default (0, 0). The two-state
         model does not track translation; supply foot positions if desired.
         Ground passes through this point at the supplied incline.
     view_limits : (xmin, xmax, ymin, ymax), optional
         Fixed camera bounds in meters. By default the view follows the stance
-        foot with bounds that fit both legs at any angle. Supply the same bounds
+        foot with bounds that fit all three spokes at any angle. Supply the same bounds
         each frame for a stationary world view.
 
     Notes
@@ -199,26 +198,31 @@ def visualize(
     )
 
     if show_swing and angle_of_attack is not None:
-        swing_angle = theta - 2 * angle_of_attack
-        swing_foot = hub - length * np.array([np.sin(swing_angle), np.cos(swing_angle)])
-        swing_color = "#df8a25"
-        ax.plot(
-            [hub[0], swing_foot[0]],
-            [hub[1], swing_foot[1]],
-            "--",
-            color=swing_color,
-            linewidth=2.5,
-            label="Swing leg",
-            zorder=3,
-        )
-        ax.plot(
-            *swing_foot,
-            "o",
-            color=swing_color,
-            markersize=7,
-            zorder=4,
-            label="Swing foot",
-        )
+        for offset, color, label in (
+            (-2 * angle_of_attack, "#df8a25", "Right spoke"),
+            (2 * angle_of_attack, "#9467bd", "Left spoke"),
+        ):
+            spoke_angle = theta + offset
+            spoke_foot = hub - length * np.array(
+                [np.sin(spoke_angle), np.cos(spoke_angle)]
+            )
+            ax.plot(
+                [hub[0], spoke_foot[0]],
+                [hub[1], spoke_foot[1]],
+                "--",
+                color=color,
+                linewidth=2.5,
+                label=label,
+                zorder=3,
+            )
+            ax.plot(
+                *spoke_foot,
+                "o",
+                color=color,
+                markersize=7,
+                zorder=4,
+                label=f"{label} tip",
+            )
 
     stance_color = "#23699b"
     ax.plot(
