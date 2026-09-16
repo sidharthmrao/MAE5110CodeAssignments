@@ -9,20 +9,85 @@ import numpy as np
 
 
 def generate_params():
-    pass
+    return {
+        # Constant environment parameters.
+        "gravity": 9.81,  # m/s^2
+        "incline_angle": 0.06,  # rad
+        # Constant wheel parameters.
+        "mass": 1.0,  # kg
+        "spoke_length": 1.0,  # m
+        # Control of angle between spokes.
+        "alpha": np.pi / 7.0,  # rad
+        "alpha_min": np.pi / 8.0,  # rad
+        "alpha_max": np.pi / 7.0,  # rad
+        # Control of contact spoke torque.
+        "ankle_torque": 0,  # Nm
+        "ankle_torque_min": -0.1 * 1.0 * 9.8 * 1.0,  # Nm
+        "ankle_torque_max": 0.05 * 1.0 * 9.8 * 1.0,  # Nm
+    }
+
+
+def angle_collision_bounds(params):
+    """Get angle collision bounds for spoke based on parameters."""
+    incline = params["incline_angle"]
+    alpha = params["alpha"]
+
+    return incline - alpha, incline + alpha
+
+
+def clipped_ankle_torque(params):
+    """Clamp ankle torque to min/max limits."""
+    return np.clip(
+        params["ankle_torque"], params["ankle_torque_min"], params["ankle_torque_max"]
+    )
 
 
 def dynamics(t, state, params):
-    # TODO: implement the state derivative.
-    return np.array([0.0, 0.0])
+    m = params["mass"]
+    g = params["gravity"]
+    l = params["spoke_length"]
+
+    T = clipped_ankle_torque(params)
+
+    angle, angular_velocity = state
+
+    # -- DYNAMICS --
+
+    angular_acceleration = g / l * np.sin(angle) + T / (m * l * l)
+
+    state_derivative = np.array([angular_velocity, angular_acceleration])
+
+    return state_derivative
 
 
-def event_guard(previous_state, next_state, params):
-    pass
+def forward_collision_guard(state, params):
+    """Detect a candidate state beyond the forward collision bound."""
+    _, forward_collision_angle = angle_collision_bounds(params)
+    return state[0] > forward_collision_angle
 
 
-def event_dynamics(state, params):
-    pass
+def backward_collision_guard(state, params):
+    """Detect a candidate state beyond the backward collision bound."""
+    backward_collision_angle, _ = angle_collision_bounds(params)
+    return state[0] < backward_collision_angle
+
+
+def forward_collision_dynamics(state, params):
+    """Apply a forward impact after its guard fires, without modifying the input."""
+    state = np.array(state, dtype=float, copy=True)
+    backward_collision_angle, _ = angle_collision_bounds(params)
+    state[0] = backward_collision_angle
+    state[1] *= np.cos(2.0 * params["alpha"])
+    return state
+
+
+def backward_collision_dynamics(state, params):
+    """Apply a backward impact after its guard fires, without modifying the input."""
+    state = np.array(state, dtype=float, copy=True)
+    _, forward_collision_angle = angle_collision_bounds(params)
+    state[0] = forward_collision_angle
+    state[1] *= np.cos(2.0 * params["alpha"])
+    return state
 
 
 def calculate_energy(state, params):
@@ -80,8 +145,8 @@ def visualize(
         raise ValueError("state must contain two finite values: [theta, velocity].")
     if foot.shape != (2,) or not np.all(np.isfinite(foot)):
         raise ValueError("stance_position must contain two finite values: [x, y].")
-    length = float(params["length"])
-    incline = float(params["incline"])
+    length = float(params["spoke_length"])
+    incline = float(params["incline_angle"])
     torque = float(params.get("ankle_torque", 0.0))
     if not np.isfinite(length) or length <= 0:
         raise ValueError("length must be finite and positive.")
@@ -89,8 +154,9 @@ def visualize(
         raise ValueError("incline must be finite and between -pi/2 and pi/2.")
     if not np.isfinite(torque):
         raise ValueError("ankle_torque must be finite.")
+    angle_of_attack = None
     if show_swing:
-        angle_of_attack = float(params["angle_of_attack"])
+        angle_of_attack = float(params["alpha"])
         if not np.isfinite(angle_of_attack):
             raise ValueError("angle_of_attack must be finite.")
 
@@ -132,7 +198,7 @@ def visualize(
         label="Vertical",
     )
 
-    if show_swing:
+    if show_swing and angle_of_attack is not None:
         swing_angle = theta - 2 * angle_of_attack
         swing_foot = hub - length * np.array([np.sin(swing_angle), np.cos(swing_angle)])
         swing_color = "#df8a25"

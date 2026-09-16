@@ -20,5 +20,5 @@ uv run python assignment_0.py
 
 - [Assignment 0](assignments/assignment_0.md)
 - [Assignment 1](assignments/assignment_1.md)
-  - Please see [Assignment 1 Notes](assignment_1_notes.md) for notes on how to run and analysis.
+  - Please see [Assignment 1 Notes](assignment_1/assignment_1_notes.md) for notes on how to run and analysis.
 - [Assignment 2](assignments/assignment_2.md)
