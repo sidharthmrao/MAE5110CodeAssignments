@@ -1,21 +1,25 @@
 # How to Run
+Run the following commands from the repository root.
+
 To run one simulation and get state-space with time plots, RoA plot, and return map plot, modify `assignment_1.py` to setup your desired simulation and model parameters (`simulation_params` and `model_params`), and then run:  
 
 ```console
-uv run python assignment_1.py
+uv run python -m assignment_1.assignment_1
 ```
 --
 
 To run a sweep over inclinations and number of spokes, run  
 
 ```console
-uv run python assignment_1_roa_simulate.py
+uv run python -m assignment_1.assignment_1_roa_simulate
 ```
 and then run  
 ```console
-uv run python assignment_1_roa_map.py
+uv run python -m assignment_1.assignment_1_roa_map
 ```
-to see the results in graphical form along with RoA plots, return map plots and overall plots for the whole sweep for Floquet Multipliers against inclines and number of spokes. The results are saved to the path `assignment_1_results`.
+to see the results in graphical form along with RoA plots, return map plots and overall plots for the whole sweep for Floquet Multipliers against inclines and number of spokes. The results are saved to `assignment_1/assignment_1_results`, regardless of the working directory.
+
+Direct script execution also works, for example `uv run python assignment_1/assignment_1.py` from the repository root or `uv run python assignment_1.py` from inside `assignment_1/`.
 
 # Process and Analysis
 
