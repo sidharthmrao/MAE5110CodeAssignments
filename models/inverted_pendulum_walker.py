@@ -1,9 +1,3 @@
-"""InvertedPendulumWalker starter model, with visualization provided.
-
-Implement the model functions for Assignment 2. The visualizer works independently
-of those functions; it draws a supplied state without advancing the simulation.
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 
