@@ -14,3 +14,17 @@ assignment_1_results/
 output/
 images/
 tmp/pdfs/
+
+# LaTeX/Pandoc build artifacts.
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Assignment 2 PDF-generation helpers.
+assignment_2/generate_writeup_pdf.sh
+assignment_2/writeup_filter.lua
+assignment_2/writeup_header.tex

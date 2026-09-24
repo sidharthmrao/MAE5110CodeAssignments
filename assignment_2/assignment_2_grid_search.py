@@ -28,24 +28,14 @@ from models import inverted_pendulum_walker as model
 OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "grid_search"
 GRID_RESOLUTIONS = [
     (2, 11),
-    (2, 15),
     (2, 18),
-    (2, 19),
-    (2, 20),
-    (2, 21),
     (2, 22),
     (2, 23),
-    (2, 24),
-    (3, 15),
-    (4, 22),
-    (8, 45),
-    (15, 90),
-    (30, 180),
 ]
 WORKERS = 8
 NUM_STARTS = 4000
 SEED = 42
-TARGET_SUCCESS = 0.95
+TARGET_SUCCESS = 1.0
 RANDOM_ANGLES = False
 TIMESTEP = 0.001
 WALK_TIME = 10.0
@@ -63,7 +53,7 @@ def plot_success_regions(results_dir):
     styles = {
         "success": ("Balanced successfully", "#21864a", "o"),
         "no_policy": ("No valid policy action", "#c94444", "x"),
-        "timeout": ("Did not reach balancing in time", "#c18116", "^"),
+        "timeout": ("Did not reach balancing RoA in time", "#c18116", "^"),
         "balance_collision": ("Collision while balancing", "#8b4aa8", "s"),
         "nonfinite": ("Nonfinite simulation", "#333333", "+"),
     }
@@ -112,7 +102,6 @@ def plot_success_regions(results_dir):
             ax.axvline(0, color="0.6", linewidth=0.7, zorder=0)
         ax.grid(alpha=0.2)
         ax.set_axisbelow(True)
-        fig.suptitle("Walking policy and balancing control", fontsize=14)
         fig.legend(
             loc="lower center", bbox_to_anchor=(0.5, 0.07), ncol=2, frameon=False
         )
