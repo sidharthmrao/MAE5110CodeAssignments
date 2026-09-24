@@ -4,7 +4,7 @@ Run: uv run python -m assignment_2.assignment_2_step_policy
 
 A step is one forward touchdown followed by a forward upright crossing.
 Zero steps means the standing controller can be used immediately at the current
-upright velocity. Success uses the saved RoA's collision-free time horizon.
+upright velocity. Success uses the saved RoA's balancing convergence region.
 """
 
 import csv

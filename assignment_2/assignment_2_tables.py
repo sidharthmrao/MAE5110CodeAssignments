@@ -1,4 +1,4 @@
-"""Read upright velocity intervals from the saved standing-region table."""
+"""Read upright velocity intervals from the saved balancing convergence-region table."""
 
 import json
 
