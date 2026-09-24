@@ -1,115 +1,95 @@
-"""Controlled walker simulation and GIF generation."""
+"""Table-based walker experiment and GIF generation."""
 
-from functools import partial
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Patch
 
-from integrators import rk4 as integrator
+from assignment_2.assignment_2_simulation import OUTPUT_DIR
+from assignment_2.assignment_2_simulation import simulate as simulate_walker
 from models import inverted_pendulum_walker as model
 
-OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+ROA_FILE = OUTPUT_DIR / "roa" / "roa_results.npz"
+POLICY_FILE = OUTPUT_DIR / "poincare" / "step_policy.npz"
+INITIAL_STATE = [0.0, 3.0]
+TIMESTEP = 1e-4
+SIM_TIME = 10.0
+ANIMATION_FPS = 25
 
 
-def control(t, state, params):
-    m = params["mass"]
-    g = params["gravity"]
-    l = params["spoke_length"]
-
-    angle, angular_velocity = state
-
-    T = -2.5 * angle - 4.0 * angular_velocity - 2 * m * g * l * np.sin(angle)
-
-    return np.clip(T, params["ankle_torque_min"], params["ankle_torque_max"])
-
-
-def simulate(
-    initial_state, params=None, *, timestep=1e-4, sim_time=5.0, max_collisions=1
+def simulate_policy(
+    initial_state,
+    params=None,
+    *,
+    timestep=1e-4,
+    sim_time=10.0,
+    max_collisions=None,
+    early_convergence=False,
+    roa_file=ROA_FILE,
+    policy_file=POLICY_FILE,
 ):
-    """Return state and applied-torque histories; copy parameters for each trial.
+    """Choose alpha during passive walking; enable ankle control upon entering the RoA.
 
-    By default stop at the first collision or after five seconds.
+    Non-upright starts use the supplied alpha until the first forward upright
+    crossing. Check the full standing RoA at every timestep and upright crossing
+    to switch to balancing as soon as it is entered. Missing policy entries
+    raise an error instead of silently using an arbitrary foot placement.
     """
     params = dict(model.generate_params() if params is None else params)
-    initial_state = np.asarray(initial_state, dtype=float)
-    if initial_state.shape != (2,) or not np.all(np.isfinite(initial_state)):
-        raise ValueError("initial_state must contain two finite values")
-    if (
-        not np.isfinite(timestep)
-        or timestep <= 0
-        or not np.isfinite(sim_time)
-        or sim_time < 0
-    ):
-        raise ValueError("timestep must be positive and sim_time nonnegative")
-    if max_collisions is not None and max_collisions < 1:
-        raise ValueError("max_collisions must be positive or None")
-    lower, upper = model.angle_collision_bounds(params)
-    if not lower <= initial_state[0] <= upper:
-        raise ValueError("Initial angle must lie within the collision bounds")
-    n_timesteps = round(sim_time / timestep) + 1
-    time_traj = np.arange(n_timesteps) * timestep
-    state_traj = np.zeros((2, n_timesteps))
-    state_traj[:, 0] = initial_state
-    torque_traj = np.full(n_timesteps, model.clipped_ankle_torque(params))
-    completed_steps = 0
-    last_step = 0
-    dynamics = partial(model.dynamics, params=params)
+    with np.load(policy_file) as data:
+        policy_velocities = data["velocities"]
+        min_steps = data["min_steps"]
+        best_alpha = data["best_alpha"]
 
-    for step, t in enumerate(time_traj[:-1]):
-        params["ankle_torque"] = control(t, state_traj[:, step], params)
-        torque_traj[step] = model.clipped_ankle_torque(params)
-        torque_traj[step + 1] = torque_traj[
-            step
-        ]  # Hold the last input at the endpoint.
-
-        # First, calculate the regular update (no collision).
-        state_traj[:, step + 1] = integrator(state_traj[:, step], t, timestep, dynamics)
-
-        # Check for collision and wrap to the new stance leg.
-        if model.forward_collision_guard(state_traj[:, step + 1], params):
-            state_traj[:, step + 1] = model.forward_collision_dynamics(
-                state_traj[:, step + 1], params
+    def choose_alpha(t, state, model_params):
+        velocity = float(state[1])
+        if not policy_velocities[0] <= velocity <= policy_velocities[-1]:
+            raise ValueError(
+                f"Upright velocity {velocity:.6g} is outside the policy table"
             )
-            completed_steps += 1
-        elif model.backward_collision_guard(state_traj[:, step + 1], params):
-            state_traj[:, step + 1] = model.backward_collision_dynamics(
-                state_traj[:, step + 1], params
+        index = int(np.argmin(abs(policy_velocities - velocity)))
+        alpha = best_alpha[index]
+        # A rounded zero-step entry cannot override the actual state RoA check.
+        if min_steps[index] <= 0 or not np.isfinite(alpha):
+            raise ValueError(
+                f"No alpha policy found for upright velocity {velocity:.6g}"
             )
-            completed_steps += 1
+        else:
+            if not model_params["alpha_min"] <= alpha <= model_params["alpha_max"]:
+                raise ValueError("Saved alpha is outside the model's limits")
+            model_params["alpha"] = float(alpha)
 
-        last_step = step + 1
-        if max_collisions is not None and completed_steps >= max_collisions:
-            break
-
-    time_traj = time_traj[: last_step + 1]
-    state_traj = state_traj[:, : last_step + 1]
-    torque_traj = torque_traj[: last_step + 1]
-
-    return {
-        "time": time_traj,
-        "state": state_traj,
-        "torque": torque_traj,
-        "completed_steps": completed_steps,
-        "params": params,
-        "timestep": timestep,
-    }
+    return simulate_walker(
+        initial_state,
+        params,
+        timestep=timestep,
+        sim_time=sim_time,
+        max_collisions=max_collisions,
+        roa_file=roa_file,
+        section_controller=choose_alpha,
+        stop_at_balance=early_convergence,
+    )
 
 
-def save_animation(result, output_dir=OUTPUT_DIR):
+def save_animation(result, output_dir=OUTPUT_DIR, name="walker"):
     """Save the walker, state histories, and applied torque without opening a window."""
     time_traj = result["time"]
     state_traj = result["state"]
     torque_traj = result["torque"]
     params = result["params"]
     completed_steps = result["completed_steps"]
-    fig = plt.figure(figsize=(12, 8), layout="constrained")
-    grid = fig.add_gridspec(3, 2)
-    ax = fig.add_subplot(grid[:, 0])
+    alpha_degrees = np.rad2deg(result["alpha"])
+    fig = plt.figure(figsize=(12, 10), layout="constrained")
+    grid = fig.add_gridspec(4, 2)
+    ax = fig.add_subplot(grid[:2, 0])
+    roa_ax = fig.add_subplot(grid[2:, 0])
     angle_ax = fig.add_subplot(grid[0, 1])
     velocity_ax = fig.add_subplot(grid[1, 1], sharex=angle_ax)
     torque_ax = fig.add_subplot(grid[2, 1], sharex=angle_ax)
+    alpha_ax = fig.add_subplot(grid[3, 1], sharex=angle_ax)
 
     angle_ax.plot(time_traj, state_traj[0], color="tab:blue")
     velocity_ax.plot(time_traj, state_traj[1], color="tab:orange")
@@ -119,14 +99,79 @@ def save_animation(result, output_dir=OUTPUT_DIR):
     for limit in (params["ankle_torque_min"], params["ankle_torque_max"]):
         torque_ax.axhline(limit, color="tab:red", linestyle=":", alpha=0.6)
     torque_ax.set_ylabel("Ankle torque [N m]")
-    torque_ax.set_xlabel("Time [s]")
+    alpha_ax.step(time_traj, alpha_degrees, where="post", color="tab:purple")
+    for limit in (params["alpha_min"], params["alpha_max"]):
+        alpha_ax.axhline(np.rad2deg(limit), color="tab:red", linestyle=":", alpha=0.6)
+    alpha_ax.set_ylabel("α [deg]")
+    alpha_ax.set_xlabel("Time [s]")
+    torque_ax.tick_params(labelbottom=False)
     velocity_ax.tick_params(labelbottom=False)
-    angle_ax.set_title("State and applied torque over time")
+    angle_ax.set_title("State and control inputs over time")
     angle_ax.tick_params(labelbottom=False)
+    # The saved RoA describes ankle-only balancing at its original fixed alpha.
+    with np.load(ROA_FILE) as data:
+        roa_angles = data["angles"]
+        roa_velocities = data["velocities"]
+        roa_converged = data["converged"]
+    roa_ax.pcolormesh(
+        roa_angles,
+        roa_velocities,
+        roa_converged.T,
+        shading="nearest",
+        cmap=ListedColormap(["#dedede", "#8fd19e"]),
+        vmin=0,
+        vmax=1,
+    )
+    # Break the drawn path at impact resets rather than implying continuous motion.
+    path = state_traj.copy()
+    impact_indices = (
+        np.flatnonzero(abs(np.diff(state_traj[0])) > params["alpha_min"]) + 1
+    )
+    path[:, impact_indices] = np.nan
+    (roa_path,) = roa_ax.plot([], [], color="tab:blue", linewidth=1, label="Trajectory")
+    roa_ax.plot(
+        *state_traj[:, 0], "*", color="tab:orange", markersize=12, label="Start"
+    )
+    (roa_point,) = roa_ax.plot(
+        [], [], "o", color="black", markersize=5, label="Current state"
+    )
+    balance_time = result.get("balance_start_time")
+    if balance_time is not None:
+        balance_index = min(
+            np.searchsorted(time_traj, balance_time), len(time_traj) - 1
+        )
+        roa_ax.plot(
+            *state_traj[:, balance_index],
+            "D",
+            color="tab:purple",
+            markersize=5,
+            label="Switch to Balancing",
+        )
+    x_min = min(roa_angles[0], state_traj[0].min())
+    x_max = max(roa_angles[-1], state_traj[0].max())
+    y_min = min(roa_velocities[0], state_traj[1].min())
+    y_max = max(roa_velocities[-1], state_traj[1].max())
+    roa_ax.set(
+        xlim=(x_min - 0.03, x_max + 0.03),
+        ylim=(y_min - 0.15, y_max + 0.15),
+        xlabel="Angle [rad]",
+        ylabel="Angular Velocity [rad/s]",
+        title="Standing RoA and Current State",
+    )
+    handles, _ = roa_ax.get_legend_handles_labels()
+    handles += [
+        Patch(color="#8fd19e", label="Standing RoA"),
+        Patch(color="#dedede", label="Collision in RoA test"),
+        Patch(facecolor="white", edgecolor="0.7", label="Not sampled"),
+    ]
+    roa_ax.legend(handles=handles, fontsize=7, loc="lower left", ncol=2)
+
     time_markers = []
     state_markers = []
-    plot_trajs = (state_traj[0], state_traj[1], torque_traj)
-    for values, state_ax in zip(plot_trajs, (angle_ax, velocity_ax, torque_ax)):
+    plot_trajs = (state_traj[0], state_traj[1], torque_traj, alpha_degrees)
+    for values, state_ax in zip(
+        plot_trajs, (angle_ax, velocity_ax, torque_ax, alpha_ax)
+    ):
         state_ax.grid(alpha=0.3)
         state_ax.set_xlim(0.0, max(time_traj[-1], 1e-4))
         time_markers.append(
@@ -136,10 +181,16 @@ def save_animation(result, output_dir=OUTPUT_DIR):
         state_markers.append(marker)
 
     def draw_frame(index):
+        roa_path.set_data(path[0, : index + 1], path[1, : index + 1])
+        roa_point.set_data([state_traj[0, index]], [state_traj[1, index]])
         # The massless swing leg is repositioned instantaneously at each impact.
-        frame_params = dict(params, ankle_torque=torque_traj[index])
+        frame_params = dict(
+            params, ankle_torque=torque_traj[index], alpha=result["alpha"][index]
+        )
         model.visualize(state_traj[:, index], frame_params, ax=ax)
-        ax.set_title(f"t = {time_traj[index]:.2f} s")
+        ax.set_title(
+            f"t = {time_traj[index]:.2f} s | α = {np.rad2deg(result['alpha'][index]):.2f}°"
+        )
         for state_index, (time_marker, state_marker) in enumerate(
             zip(time_markers, state_markers)
         ):
@@ -147,7 +198,7 @@ def save_animation(result, output_dir=OUTPUT_DIR):
             state_marker.set_data([time_traj[index]], [plot_trajs[state_index][index]])
 
     # Simulate at a small timestep, but render only 25 frames per second.
-    fps = 25
+    fps = ANIMATION_FPS
     frame_stride = max(1, round(1 / (fps * result["timestep"])))
     frame_indices = list(range(0, time_traj.size, frame_stride))
     if frame_indices[-1] != time_traj.size - 1:
@@ -158,14 +209,16 @@ def save_animation(result, output_dir=OUTPUT_DIR):
     )
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
-    animation.save(output / "walker.gif", writer=PillowWriter(fps=fps))
+    animation.save(output / f"{name}.gif", writer=PillowWriter(fps=fps))
 
     # To save an MP4 instead, install FFmpeg and use:
     # animation.save(output / "walker.mp4", writer="ffmpeg", fps=fps)
-    print(f"Saved {output / 'walker.gif'} ({completed_steps} footstrikes).")
+    print(f"Saved {output / f'{name}.gif'} ({completed_steps} footstrikes).")
+    draw_frame(len(time_traj) - 1)
+    fig.savefig(output / f"{name}_final.png", dpi=180)
     plt.close(fig)
 
 
 if __name__ == "__main__":
-    result = simulate([-0.22, 0.55], timestep=1e-4, sim_time=5.0, max_collisions=1)
+    result = simulate_policy(INITIAL_STATE, timestep=TIMESTEP, sim_time=SIM_TIME)
     save_animation(result)

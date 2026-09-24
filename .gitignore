@@ -12,4 +12,5 @@ assignment_1_results/
 
 # Assignment 2 figures, numerical tables, and compiled report are reproducible.
 output/
+images/
 tmp/pdfs/
