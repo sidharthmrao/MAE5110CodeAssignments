@@ -1,4 +1,4 @@
-"""Table-based walker experiment and GIF generation."""
+"""Simulates with controller for specified initial state."""
 
 from pathlib import Path
 
