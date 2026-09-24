@@ -2,12 +2,18 @@
 
 import json
 import os
+import sys
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+# Support direct script launches as well as package execution with `python -m`.
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = "assignment_1"
+
 import numpy as np
 
-from assignment_1 import simulate
+from .assignment_1 import simulate
 
 CONVERGENCES = ["SETTLED_STABLE", "SETTLED_UNSTABLE", "CYCLED"]
 
@@ -45,7 +51,7 @@ NUM_SPOKES_SWEEP = range(6, 13)
 NUM_SPOKES_SWEEP_INCLINE_DEGREES = 20.0
 
 NUM_WORKERS = max(1, min(12, (os.cpu_count() or 2) - 1))
-OUTPUT_DIR = Path(__file__).with_name("assignment_1_results")
+OUTPUT_DIR = Path(__file__).resolve().with_name("assignment_1_results")
 NUMPY_DATA_DIR = OUTPUT_DIR / "numpy_data"
 
 
