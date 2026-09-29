@@ -12,14 +12,21 @@ Overall process:
 """
 
 import json
+import sys
+from pathlib import Path
+
+# Support direct script launches as well as package execution with `python -m`.
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = "assignment_1"
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.patches import Patch
-from assignment_1_visualization import plot_poincare_return_map
+from .assignment_1_visualization import plot_poincare_return_map
 
-from assignment_1_roa_simulate import (
+from .assignment_1_roa_simulate import (
     MODEL_PARAMS,
     NUMPY_DATA_DIR,
     NUM_SPOKES_SWEEP_INCLINE_DEGREES,
@@ -48,7 +55,7 @@ def load_results(results_file):
     if not results_file.exists():
         raise FileNotFoundError(
             f"{results_file.name} does not exist. Run "
-            "assignment_1_roa_simulate.py first."
+            "uv run python -m assignment_1.assignment_1_roa_simulate from the repository root first."
         )
 
     with np.load(results_file, allow_pickle=False) as data:
@@ -413,7 +420,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(
             f"No saved tests matching {RESULTS_PATTERN} were found in "
             f"{NUMPY_DATA_DIR}. "
-            "Run assignment_1_roa_simulate.py first."
+            "Run uv run python -m assignment_1.assignment_1_roa_simulate from the repository root first."
         )
 
     print(f"Plotting {len(result_files)} saved test(s).")

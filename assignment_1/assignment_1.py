@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from integrators import rk4 as integrator
-from assignment_1_visualization import plot_poincare_return_map
+from assignment_1.assignment_1_visualization import plot_poincare_return_map
 
 
 def spoked_wheel_non_collision_dynamics(state, params):
